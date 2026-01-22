@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EventReach Admin</title>
+  <title>EventReach Admin Dashboard</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -11,16 +11,16 @@
 
 <body class="bg-gray-50 text-gray-900">
 
-<div class="max-w-6xl mx-auto px-4 py-10">
+<div class="max-w-7xl mx-auto px-4 py-10">
 
   <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-8">
     <div>
-      <h1 class="text-3xl font-bold text-indigo-600">Admin Panel</h1>
-      <p class="text-sm text-gray-500">Manage Pricing Settings</p>
+      <h1 class="text-3xl font-bold text-indigo-600">EventReach Admin</h1>
+      <p class="text-sm text-gray-500">Track inquiries + manage pricing</p>
     </div>
   </div>
 
-  <!-- ✅ Admin Login -->
+  <!-- ✅ Login -->
   <div id="loginBox" class="bg-white p-6 rounded-2xl border shadow mb-8">
     <h2 class="text-xl font-bold mb-3">Admin Login</h2>
 
@@ -28,7 +28,7 @@
       <input id="emailInput" type="email" placeholder="Admin Email"
         class="p-3 rounded-xl border focus:ring-2 focus:ring-indigo-400 outline-none">
 
-      <input id="pinInput" type="password" placeholder="Enter PIN"
+      <input id="pinInput" type="password" placeholder="PIN (1234)"
         class="p-3 rounded-xl border focus:ring-2 focus:ring-indigo-400 outline-none">
     </div>
 
@@ -43,7 +43,55 @@
   <!-- ✅ Dashboard -->
   <div id="dashboardBox" class="hidden space-y-8">
 
-    <!-- SETTINGS -->
+    <!-- ✅ INQUIRIES SECTION -->
+    <div class="bg-white p-6 rounded-2xl border shadow">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+          <h2 class="text-xl font-bold">Inquiries / Orders</h2>
+          <p class="text-sm text-gray-500">Pending & Completed tracking</p>
+        </div>
+
+        <div class="flex gap-2 flex-wrap">
+          <button id="refreshInquiriesBtn"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl transition">
+            🔄 Refresh
+          </button>
+
+          <button id="exportCsvBtn"
+            class="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded-xl transition">
+            ⬇ Export CSV
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <input id="searchBox" type="text"
+          class="w-full p-3 rounded-xl border focus:ring-2 focus:ring-indigo-400 outline-none"
+          placeholder="Search: name / phone / event / language / status...">
+      </div>
+
+      <div class="mt-4 overflow-x-auto border rounded-2xl">
+        <table class="min-w-full text-sm">
+          <thead class="bg-gray-100 text-gray-600">
+            <tr>
+              <th class="text-left px-4 py-3">Date</th>
+              <th class="text-left px-4 py-3">Name</th>
+              <th class="text-left px-4 py-3">Phone</th>
+              <th class="text-left px-4 py-3">Guests</th>
+              <th class="text-left px-4 py-3">Language</th>
+              <th class="text-left px-4 py-3">Event</th>
+              <th class="text-left px-4 py-3">Status</th>
+              <th class="text-left px-4 py-3">Action</th>
+            </tr>
+          </thead>
+          <tbody id="inquiryRows" class="divide-y"></tbody>
+        </table>
+      </div>
+
+      <p id="inquiryStatusMsg" class="mt-3 text-sm font-semibold"></p>
+    </div>
+
+    <!-- ✅ PRICING SETTINGS -->
     <div class="bg-white p-6 rounded-2xl border shadow">
       <h2 class="text-xl font-bold mb-4">Pricing Controls</h2>
 
@@ -67,10 +115,11 @@
       <p id="settingsStatus" class="mt-3 text-sm font-semibold"></p>
     </div>
 
-    <!-- PLANS -->
+    <!-- ✅ PRICING PLANS -->
     <div class="bg-white p-6 rounded-2xl border shadow">
       <div class="flex items-center justify-between gap-3 flex-wrap">
         <h2 class="text-xl font-bold">Pricing Plans</h2>
+
         <button id="reloadPlansBtn"
           class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-xl transition">
           🔄 Reload Plans
@@ -100,6 +149,7 @@
   const ADMIN_EMAIL = "kps13082000@gmail.com";
   const ADMIN_PIN = "2550";
 
+  // UI
   const loginBox = document.getElementById("loginBox");
   const dashboardBox = document.getElementById("dashboardBox");
 
@@ -108,16 +158,26 @@
   const loginBtn = document.getElementById("loginBtn");
   const loginStatus = document.getElementById("loginStatus");
 
+  // Inquiries
+  const inquiryRows = document.getElementById("inquiryRows");
+  const refreshInquiriesBtn = document.getElementById("refreshInquiriesBtn");
+  const inquiryStatusMsg = document.getElementById("inquiryStatusMsg");
+  const searchBox = document.getElementById("searchBox");
+  const exportCsvBtn = document.getElementById("exportCsvBtn");
+
+  // Settings
   const showPricingToggle = document.getElementById("showPricingToggle");
   const pricingAnimToggle = document.getElementById("pricingAnimToggle");
   const saveSettingsBtn = document.getElementById("saveSettingsBtn");
   const settingsStatus = document.getElementById("settingsStatus");
 
+  // Plans
   const plansBox = document.getElementById("plansBox");
   const savePlansBtn = document.getElementById("savePlansBtn");
   const reloadPlansBtn = document.getElementById("reloadPlansBtn");
   const plansStatus = document.getElementById("plansStatus");
 
+  let inquiriesCache = [];
   let plansCache = [];
 
   function setMsg(el, msg, type="info") {
@@ -133,6 +193,16 @@
     dashboardBox.classList.remove("hidden");
   }
 
+  function escapeHtml(str) {
+    return (str || "")
+      .toString()
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+  }
+
+  // ✅ LOGIN
   loginBtn.addEventListener("click", async () => {
     const email = emailInput.value.trim().toLowerCase();
     const pin = pinInput.value.trim();
@@ -149,10 +219,175 @@
     setMsg(loginStatus, "✅ Login success!", "success");
     showDashboard();
 
+    await loadInquiries();
     await loadSettings();
     await loadPlans();
   });
 
+  // ✅ LOAD INQUIRIES
+  async function loadInquiries() {
+    inquiryRows.innerHTML = "";
+    setMsg(inquiryStatusMsg, "Loading inquiries...", "info");
+
+    const { data, error } = await supabaseClient
+      .from("inquiries")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      setMsg(inquiryStatusMsg, "❌ Failed to load inquiries: " + error.message, "error");
+      return;
+    }
+
+    inquiriesCache = data || [];
+    renderInquiries(inquiriesCache);
+    setMsg(inquiryStatusMsg, "✅ Inquiries loaded", "success");
+  }
+
+  function renderInquiries(list) {
+    inquiryRows.innerHTML = "";
+
+    if (!list.length) {
+      inquiryRows.innerHTML = `
+        <tr>
+          <td colspan="8" class="px-4 py-8 text-center text-gray-500">
+            No inquiries found
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    list.forEach((x) => {
+      const date = x.created_at ? new Date(x.created_at).toLocaleString() : "-";
+      const statusVal = x.status || "pending";
+
+      inquiryRows.innerHTML += `
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(date)}</td>
+          <td class="px-4 py-3 font-semibold">${escapeHtml(x.name)}</td>
+          <td class="px-4 py-3">${escapeHtml(x.phone)}</td>
+          <td class="px-4 py-3">${escapeHtml(x.guest_count)}</td>
+          <td class="px-4 py-3">${escapeHtml(x.language)}</td>
+          <td class="px-4 py-3">${escapeHtml(x.event_type)}</td>
+
+          <td class="px-4 py-3">
+            <select class="p-2 rounded-lg border bg-white"
+              data-id="${x.id}">
+              <option value="pending" ${statusVal === "pending" ? "selected" : ""}>Pending</option>
+              <option value="done" ${statusVal === "done" ? "selected" : ""}>Done</option>
+            </select>
+          </td>
+
+          <td class="px-4 py-3 flex gap-2">
+            <button class="saveBtn bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg font-bold"
+              data-id="${x.id}">
+              Save
+            </button>
+
+            <button class="delBtn bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg font-bold"
+              data-id="${x.id}">
+              Delete
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+
+    // Save status
+    document.querySelectorAll(".saveBtn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.id;
+        const sel = document.querySelector(`select[data-id="${id}"]`);
+        const newStatus = sel.value;
+
+        const { error } = await supabaseClient
+          .from("inquiries")
+          .update({ status: newStatus })
+          .eq("id", id);
+
+        if (error) {
+          alert("❌ Save failed: " + error.message);
+          return;
+        }
+
+        alert("✅ Status Updated");
+        await loadInquiries();
+      });
+    });
+
+    // Delete inquiry
+    document.querySelectorAll(".delBtn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = btn.dataset.id;
+        if (!confirm("Delete this inquiry?")) return;
+
+        const { error } = await supabaseClient
+          .from("inquiries")
+          .delete()
+          .eq("id", id);
+
+        if (error) {
+          alert("❌ Delete failed: " + error.message);
+          return;
+        }
+
+        alert("✅ Deleted");
+        await loadInquiries();
+      });
+    });
+  }
+
+  refreshInquiriesBtn.addEventListener("click", loadInquiries);
+
+  // Search inquiries
+  searchBox.addEventListener("input", () => {
+    const q = searchBox.value.trim().toLowerCase();
+    if (!q) return renderInquiries(inquiriesCache);
+
+    const filtered = inquiriesCache.filter(x => {
+      return (
+        (x.name || "").toLowerCase().includes(q) ||
+        (x.phone || "").toLowerCase().includes(q) ||
+        (x.language || "").toLowerCase().includes(q) ||
+        (x.event_type || "").toLowerCase().includes(q) ||
+        (x.status || "").toLowerCase().includes(q)
+      );
+    });
+
+    renderInquiries(filtered);
+  });
+
+  // Export CSV
+  exportCsvBtn.addEventListener("click", () => {
+    const header = ["created_at","name","phone","guest_count","language","event_type","status"];
+    const rows = inquiriesCache.map(x => [
+      x.created_at || "",
+      x.name || "",
+      x.phone || "",
+      x.guest_count || "",
+      x.language || "",
+      x.event_type || "",
+      x.status || "pending"
+    ]);
+
+    const csv = [header, ...rows]
+      .map(r => r.map(v => `"${String(v).replaceAll('"','""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "eventreach_inquiries.csv";
+    a.click();
+
+    URL.revokeObjectURL(url);
+  });
+
+  // ✅ SETTINGS
   async function loadSettings() {
     const { data, error } = await supabaseClient
       .from("site_settings")
@@ -168,12 +403,11 @@
 
     showPricingToggle.checked = !!data.show_pricing;
     pricingAnimToggle.checked = !!data.pricing_animations;
-
     setMsg(settingsStatus, "✅ Settings loaded", "success");
   }
 
   saveSettingsBtn.addEventListener("click", async () => {
-    setMsg(settingsStatus, "Saving settings...", "info");
+    setMsg(settingsStatus, "Saving...", "info");
 
     const { error } = await supabaseClient
       .from("site_settings")
@@ -190,9 +424,10 @@
       return;
     }
 
-    setMsg(settingsStatus, "✅ Saved successfully! Refresh your website to see changes.", "success");
+    setMsg(settingsStatus, "✅ Saved! Refresh website to see changes.", "success");
   });
 
+  // ✅ PLANS
   async function loadPlans() {
     plansBox.innerHTML = "Loading plans...";
     setMsg(plansStatus, "", "info");
@@ -205,7 +440,7 @@
     if (error) {
       console.error(error);
       plansBox.innerHTML = "";
-      setMsg(plansStatus, "❌ Failed to load plans: " + error.message, "error");
+      setMsg(plansStatus, "❌ Failed: " + error.message, "error");
       return;
     }
 
@@ -220,81 +455,4 @@
     plans.forEach((p, idx) => {
       plansBox.innerHTML += `
         <div class="p-5 rounded-2xl border bg-gray-50">
-          <h3 class="font-bold text-lg mb-3">${p.plan_name}</h3>
-
-          <label class="text-sm font-semibold text-gray-600">Price (₹)</label>
-          <input type="number" class="w-full mt-1 p-3 rounded-xl border outline-none"
-            value="${p.price}" data-idx="${idx}" data-field="price">
-
-          <label class="text-sm font-semibold text-gray-600 mt-3 block">Subtitle</label>
-          <input type="text" class="w-full mt-1 p-3 rounded-xl border outline-none"
-            value="${p.subtitle || ""}" data-idx="${idx}" data-field="subtitle">
-
-          <label class="text-sm font-semibold text-gray-600 mt-3 block">Highlight</label>
-          <select class="w-full mt-1 p-3 rounded-xl border outline-none"
-            data-idx="${idx}" data-field="highlight">
-            <option value="false" ${p.highlight ? "" : "selected"}>No</option>
-            <option value="true" ${p.highlight ? "selected" : ""}>Yes</option>
-          </select>
-
-          <label class="text-sm font-semibold text-gray-600 mt-3 block">
-            Features (comma separated)
-          </label>
-          <textarea class="w-full mt-1 p-3 rounded-xl border outline-none h-28"
-            data-idx="${idx}" data-field="features">${(p.features || []).join(", ")}</textarea>
-        </div>
-      `;
-    });
-
-    // listen changes
-    plansBox.querySelectorAll("input, select, textarea").forEach((el) => {
-      el.addEventListener("input", () => {
-        const idx = Number(el.dataset.idx);
-        const field = el.dataset.field;
-
-        if (field === "price") {
-          plansCache[idx].price = Number(el.value || 0);
-        } else if (field === "subtitle") {
-          plansCache[idx].subtitle = el.value;
-        } else if (field === "highlight") {
-          plansCache[idx].highlight = (el.value === "true");
-        } else if (field === "features") {
-          plansCache[idx].features = el.value
-            .split(",")
-            .map(x => x.trim())
-            .filter(Boolean);
-        }
-      });
-    });
-  }
-
-  reloadPlansBtn.addEventListener("click", loadPlans);
-
-  savePlansBtn.addEventListener("click", async () => {
-    setMsg(plansStatus, "Saving plan changes...", "info");
-
-    for (const p of plansCache) {
-      const { error } = await supabaseClient
-        .from("pricing_plans")
-        .update({
-          price: p.price,
-          subtitle: p.subtitle,
-          highlight: p.highlight,
-          features: p.features,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", p.id);
-
-      if (error) {
-        console.error(error);
-        setMsg(plansStatus, "❌ Failed saving " + p.plan_name + ": " + error.message, "error");
-        return;
-      }
-    }
-
-    setMsg(plansStatus, "✅ All plans saved! Refresh website to see changes.", "success");
-  });
-</script>
-
-</body>
-</html>
+          <h3 class="font-bold text-lg
