@@ -391,6 +391,9 @@
     }
 
     loadPricingFromSupabase();
+    // ✅ Auto-refresh pricing every 30 seconds
+  setInterval(loadPricingFromSupabase, 30000);
+
 
     // ✅ Form submit: admin trick + normal inquiry
     form.addEventListener("submit", async (e) => {
@@ -487,3 +490,4 @@
 
 </body>
 </html>
+
