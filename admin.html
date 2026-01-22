@@ -455,4 +455,74 @@
     plans.forEach((p, idx) => {
       plansBox.innerHTML += `
         <div class="p-5 rounded-2xl border bg-gray-50">
-          <h3 class="font-bold text-lg
+          <h3 class="font-bold text-lg mb-3">${escapeHtml(p.plan_name)}</h3>
+
+          <label class="text-sm font-semibold text-gray-600">Price (₹)</label>
+          <input type="number" class="w-full mt-1 p-3 rounded-xl border outline-none"
+            value="${p.price}" data-idx="${idx}" data-field="price">
+
+          <label class="text-sm font-semibold text-gray-600 mt-3 block">Subtitle</label>
+          <input type="text" class="w-full mt-1 p-3 rounded-xl border outline-none"
+            value="${escapeHtml(p.subtitle || "")}" data-idx="${idx}" data-field="subtitle">
+
+          <label class="text-sm font-semibold text-gray-600 mt-3 block">Highlight</label>
+          <select class="w-full mt-1 p-3 rounded-xl border outline-none"
+            data-idx="${idx}" data-field="highlight">
+            <option value="false" ${p.highlight ? "" : "selected"}>No</option>
+            <option value="true" ${p.highlight ? "selected" : ""}>Yes</option>
+          </select>
+
+          <label class="text-sm font-semibold text-gray-600 mt-3 block">
+            Features (comma separated)
+          </label>
+          <textarea class="w-full mt-1 p-3 rounded-xl border outline-none h-28"
+            data-idx="${idx}" data-field="features">${(p.features || []).join(", ")}</textarea>
+        </div>
+      `;
+    });
+
+    plansBox.querySelectorAll("input, select, textarea").forEach((el) => {
+      el.addEventListener("input", () => {
+        const idx = Number(el.dataset.idx);
+        const field = el.dataset.field;
+
+        if (field === "price") plansCache[idx].price = Number(el.value || 0);
+        if (field === "subtitle") plansCache[idx].subtitle = el.value;
+        if (field === "highlight") plansCache[idx].highlight = (el.value === "true");
+        if (field === "features") {
+          plansCache[idx].features = el.value.split(",").map(x => x.trim()).filter(Boolean);
+        }
+      });
+    });
+  }
+
+  reloadPlansBtn.addEventListener("click", loadPlans);
+
+  savePlansBtn.addEventListener("click", async () => {
+    setMsg(plansStatus, "Saving changes...", "info");
+
+    for (const p of plansCache) {
+      const { error } = await supabaseClient
+        .from("pricing_plans")
+        .update({
+          price: p.price,
+          subtitle: p.subtitle,
+          highlight: p.highlight,
+          features: p.features,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", p.id);
+
+      if (error) {
+        console.error(error);
+        setMsg(plansStatus, "❌ Save failed: " + error.message, "error");
+        return;
+      }
+    }
+
+    setMsg(plansStatus, "✅ Plans saved! Hard refresh website (Ctrl+Shift+R)", "success");
+  });
+</script>
+
+</body>
+</html>
