@@ -81,6 +81,7 @@
               <th class="text-left px-4 py-3">Language</th>
               <th class="text-left px-4 py-3">Event</th>
               <th class="text-left px-4 py-3">Status</th>
+              <th class="text-left px-4 py-3">Pending Since</th>
               <th class="text-left px-4 py-3">Action</th>
             </tr>
           </thead>
@@ -187,6 +188,16 @@
     if (type === "error") el.classList.add("text-red-600");
     if (type === "info") el.classList.add("text-gray-600");
   }
+  function daysAgoLabel(createdAt) {
+  const now = new Date();
+  const created = new Date(createdAt);
+  const diffMs = now - created;
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (days <= 0) return { text: "Today", days: 0 };
+  if (days === 1) return { text: "1 day ago", days: 1 };
+  return { text: `${days} days ago`, days };
+}
 
   function showDashboard() {
     loginBox.classList.add("hidden");
@@ -262,6 +273,16 @@
     list.forEach((x) => {
       const date = x.created_at ? new Date(x.created_at).toLocaleString() : "-";
       const statusVal = x.status || "pending";
+      const pendingInfo = daysAgoLabel(x.created_at);
+      const isPending = statusVal === "pending";
+      
+      let badgeClass = "bg-green-100 text-green-700"; // default
+      if (isPending) {
+        if (pendingInfo.days >= 7) badgeClass = "bg-red-100 text-red-700";     // 🔴 7+ days
+        else if (pendingInfo.days >= 3) badgeClass = "bg-yellow-100 text-yellow-700"; // 🟡 3-6 days
+        else badgeClass = "bg-indigo-100 text-indigo-700"; // 0-2 days
+      }
+
 
       inquiryRows.innerHTML += `
         <tr class="hover:bg-gray-50">
@@ -279,6 +300,11 @@
               <option value="done" ${statusVal === "done" ? "selected" : ""}>Done</option>
             </select>
           </td>
+            <td class="px-4 py-3">
+              <span class="px-3 py-1 rounded-full text-xs font-bold ${badgeClass}">
+                ${pendingInfo.text}
+              </span>
+            </td>
 
           <td class="px-4 py-3 flex gap-2">
             <button class="saveBtn bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg font-bold"
@@ -526,3 +552,4 @@
 
 </body>
 </html>
+
