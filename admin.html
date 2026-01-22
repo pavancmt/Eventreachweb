@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EventReach Admin</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body class="bg-gray-50 text-gray-900">
+
+<div class="max-w-6xl mx-auto px-4 py-10">
+
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-8">
+    <div>
+      <h1 class="text-3xl font-bold text-indigo-600">Admin Panel</h1>
+      <p class="text-sm text-gray-500">Manage Pricing Settings</p>
+    </div>
+  </div>
+
+  <!-- ✅ Admin Login -->
+  <div id="loginBox" class="bg-white p-6 rounded-2xl border shadow mb-8">
+    <h2 class="text-xl font-bold mb-3">Admin Login</h2>
+
+    <div class="grid md:grid-cols-2 gap-4">
+      <input id="emailInput" type="email" placeholder="Admin Email"
+        class="p-3 rounded-xl border focus:ring-2 focus:ring-indigo-400 outline-none">
+
+      <input id="pinInput" type="password" placeholder="Enter PIN"
+        class="p-3 rounded-xl border focus:ring-2 focus:ring-indigo-400 outline-none">
+    </div>
+
+    <button id="loginBtn"
+      class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition">
+      Login
+    </button>
+
+    <p id="loginStatus" class="mt-3 text-sm font-semibold"></p>
+  </div>
+
+  <!-- ✅ Dashboard -->
+  <div id="dashboardBox" class="hidden space-y-8">
+
+    <!-- SETTINGS -->
+    <div class="bg-white p-6 rounded-2xl border shadow">
+      <h2 class="text-xl font-bold mb-4">Pricing Controls</h2>
+
+      <div class="grid md:grid-cols-2 gap-4">
+        <label class="flex items-center gap-3 p-4 rounded-xl border bg-gray-50">
+          <input type="checkbox" id="showPricingToggle" class="w-5 h-5">
+          <span class="font-semibold">Show Pricing Section</span>
+        </label>
+
+        <label class="flex items-center gap-3 p-4 rounded-xl border bg-gray-50">
+          <input type="checkbox" id="pricingAnimToggle" class="w-5 h-5">
+          <span class="font-semibold">Enable Pricing Animations</span>
+        </label>
+      </div>
+
+      <button id="saveSettingsBtn"
+        class="mt-4 bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-3 rounded-xl transition">
+        ✅ Save Settings
+      </button>
+
+      <p id="settingsStatus" class="mt-3 text-sm font-semibold"></p>
+    </div>
+
+    <!-- PLANS -->
+    <div class="bg-white p-6 rounded-2xl border shadow">
+      <div class="flex items-center justify-between gap-3 flex-wrap">
+        <h2 class="text-xl font-bold">Pricing Plans</h2>
+        <button id="reloadPlansBtn"
+          class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-xl transition">
+          🔄 Reload Plans
+        </button>
+      </div>
+
+      <div id="plansBox" class="mt-5 grid md:grid-cols-3 gap-6"></div>
+
+      <button id="savePlansBtn"
+        class="mt-6 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition">
+        ✅ Save All Plan Changes
+      </button>
+
+      <p id="plansStatus" class="mt-3 text-sm font-semibold"></p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ✅ Supabase
+  const SUPABASE_URL = "https://camzrkmcnxgwaaseyhsa.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_9_rF9TbHlX5-hWe_0q3V3g_9nMaFFIt";
+  const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ✅ Admin PIN (frontend trick)
+  const ADMIN_EMAIL = "kps13082000@gmail.com";
+  const ADMIN_PIN = "2550";
+
+  const loginBox = document.getElementById("loginBox");
+  const dashboardBox = document.getElementById("dashboardBox");
+
+  const emailInput = document.getElementById("emailInput");
+  const pinInput = document.getElementById("pinInput");
+  const loginBtn = document.getElementById("loginBtn");
+  const loginStatus = document.getElementById("loginStatus");
+
+  const showPricingToggle = document.getElementById("showPricingToggle");
+  const pricingAnimToggle = document.getElementById("pricingAnimToggle");
+  const saveSettingsBtn = document.getElementById("saveSettingsBtn");
+  const settingsStatus = document.getElementById("settingsStatus");
+
+  const plansBox = document.getElementById("plansBox");
+  const savePlansBtn = document.getElementById("savePlansBtn");
+  const reloadPlansBtn = document.getElementById("reloadPlansBtn");
+  const plansStatus = document.getElementById("plansStatus");
+
+  let plansCache = [];
+
+  function setMsg(el, msg, type="info") {
+    el.textContent = msg;
+    el.className = "mt-3 text-sm font-semibold";
+    if (type === "success") el.classList.add("text-green-600");
+    if (type === "error") el.classList.add("text-red-600");
+    if (type === "info") el.classList.add("text-gray-600");
+  }
+
+  function showDashboard() {
+    loginBox.classList.add("hidden");
+    dashboardBox.classList.remove("hidden");
+  }
+
+  loginBtn.addEventListener("click", async () => {
+    const email = emailInput.value.trim().toLowerCase();
+    const pin = pinInput.value.trim();
+
+    if (email !== ADMIN_EMAIL.toLowerCase()) {
+      setMsg(loginStatus, "❌ Only admin email is allowed", "error");
+      return;
+    }
+    if (pin !== ADMIN_PIN) {
+      setMsg(loginStatus, "❌ Wrong PIN", "error");
+      return;
+    }
+
+    setMsg(loginStatus, "✅ Login success!", "success");
+    showDashboard();
+
+    await loadSettings();
+    await loadPlans();
+  });
+
+  async function loadSettings() {
+    const { data, error } = await supabaseClient
+      .from("site_settings")
+      .select("*")
+      .eq("id", 1)
+      .single();
+
+    if (error) {
+      console.error(error);
+      setMsg(settingsStatus, "❌ Failed to load settings: " + error.message, "error");
+      return;
+    }
+
+    showPricingToggle.checked = !!data.show_pricing;
+    pricingAnimToggle.checked = !!data.pricing_animations;
+
+    setMsg(settingsStatus, "✅ Settings loaded", "success");
+  }
+
+  saveSettingsBtn.addEventListener("click", async () => {
+    setMsg(settingsStatus, "Saving settings...", "info");
+
+    const { error } = await supabaseClient
+      .from("site_settings")
+      .update({
+        show_pricing: showPricingToggle.checked,
+        pricing_animations: pricingAnimToggle.checked,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", 1);
+
+    if (error) {
+      console.error(error);
+      setMsg(settingsStatus, "❌ Save failed: " + error.message, "error");
+      return;
+    }
+
+    setMsg(settingsStatus, "✅ Saved successfully! Refresh your website to see changes.", "success");
+  });
+
+  async function loadPlans() {
+    plansBox.innerHTML = "Loading plans...";
+    setMsg(plansStatus, "", "info");
+
+    const { data, error } = await supabaseClient
+      .from("pricing_plans")
+      .select("*")
+      .order("sort_order", { ascending: true });
+
+    if (error) {
+      console.error(error);
+      plansBox.innerHTML = "";
+      setMsg(plansStatus, "❌ Failed to load plans: " + error.message, "error");
+      return;
+    }
+
+    plansCache = data || [];
+    renderPlans(plansCache);
+    setMsg(plansStatus, "✅ Plans loaded", "success");
+  }
+
+  function renderPlans(plans) {
+    plansBox.innerHTML = "";
+
+    plans.forEach((p, idx) => {
+      plansBox.innerHTML += `
+        <div class="p-5 rounded-2xl border bg-gray-50">
+          <h3 class="font-bold text-lg mb-3">${p.plan_name}</h3>
+
+          <label class="text-sm font-semibold text-gray-600">Price (₹)</label>
+          <input type="number" class="w-full mt-1 p-3 rounded-xl border outline-none"
+            value="${p.price}" data-idx="${idx}" data-field="price">
+
+          <label class="text-sm font-semibold text-gray-600 mt-3 block">Subtitle</label>
+          <input type="text" class="w-full mt-1 p-3 rounded-xl border outline-none"
+            value="${p.subtitle || ""}" data-idx="${idx}" data-field="subtitle">
+
+          <label class="text-sm font-semibold text-gray-600 mt-3 block">Highlight</label>
+          <select class="w-full mt-1 p-3 rounded-xl border outline-none"
+            data-idx="${idx}" data-field="highlight">
+            <option value="false" ${p.highlight ? "" : "selected"}>No</option>
+            <option value="true" ${p.highlight ? "selected" : ""}>Yes</option>
+          </select>
+
+          <label class="text-sm font-semibold text-gray-600 mt-3 block">
+            Features (comma separated)
+          </label>
+          <textarea class="w-full mt-1 p-3 rounded-xl border outline-none h-28"
+            data-idx="${idx}" data-field="features">${(p.features || []).join(", ")}</textarea>
+        </div>
+      `;
+    });
+
+    // listen changes
+    plansBox.querySelectorAll("input, select, textarea").forEach((el) => {
+      el.addEventListener("input", () => {
+        const idx = Number(el.dataset.idx);
+        const field = el.dataset.field;
+
+        if (field === "price") {
+          plansCache[idx].price = Number(el.value || 0);
+        } else if (field === "subtitle") {
+          plansCache[idx].subtitle = el.value;
+        } else if (field === "highlight") {
+          plansCache[idx].highlight = (el.value === "true");
+        } else if (field === "features") {
+          plansCache[idx].features = el.value
+            .split(",")
+            .map(x => x.trim())
+            .filter(Boolean);
+        }
+      });
+    });
+  }
+
+  reloadPlansBtn.addEventListener("click", loadPlans);
+
+  savePlansBtn.addEventListener("click", async () => {
+    setMsg(plansStatus, "Saving plan changes...", "info");
+
+    for (const p of plansCache) {
+      const { error } = await supabaseClient
+        .from("pricing_plans")
+        .update({
+          price: p.price,
+          subtitle: p.subtitle,
+          highlight: p.highlight,
+          features: p.features,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", p.id);
+
+      if (error) {
+        console.error(error);
+        setMsg(plansStatus, "❌ Failed saving " + p.plan_name + ": " + error.message, "error");
+        return;
+      }
+    }
+
+    setMsg(plansStatus, "✅ All plans saved! Refresh website to see changes.", "success");
+  });
+</script>
+
+</body>
+</html>
