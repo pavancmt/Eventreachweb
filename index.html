@@ -505,96 +505,110 @@
     closeModalBtn.addEventListener("click", closeModal);
     thankYouModal.addEventListener("click", (e) => { if (e.target === thankYouModal) closeModal(); });
 
-    // ✅ Pricing load from Supabase
-    async function loadPricingFromSupabase() {
-      const { data: settings, error: sErr } = await supabaseClient
-        .from("site_settings")
-        .select("*")
-        .eq("id", 1)
-        .single();
-
-      if (sErr) {
-        console.error("Settings load error:", sErr);
-        return;
-      }
-
+  // ✅ UI Elements (must be before calling function)
+      const pricingSection = document.getElementById("pricing");
+      const pricingCard = document.getElementById("pricingCard");
+      const pricingGrid = document.getElementById("pricingGrid");
+      
+      const pricingNavLink = document.getElementById("pricingNavLink");
+      const aboutPricingBtn = document.getElementById("aboutPricingBtn");
+      const heroPricingBtn = document.getElementById("heroPricingBtn");
+      
+      // ✅ Pricing load from Supabase
+      async function loadPricingFromSupabase() {
+        const { data: settings, error: sErr } = await supabaseClient
+          .from("site_settings")
+          .select("*")
+          .eq("id", 1)
+          .single();
+      
+        if (sErr) {
+          console.error("Settings load error:", sErr);
+          return;
+        }
+      
+        // ✅ SHOW/HIDE Pricing Everywhere
         if (!settings.show_pricing) {
-        // ✅ Hide pricing section
-        pricingSection.classList.add("hidden");
+          // Hide pricing section
+          if (pricingSection) pricingSection.classList.add("hidden");
       
-        // ✅ Force hide navbar Pricing tab
-        if (pricingNavLink) pricingNavLink.style.display = "none";
+          // Hide navbar pricing tab
+          if (pricingNavLink) pricingNavLink.style.display = "none";
       
-        // ✅ Force hide About View Pricing button
-        if (aboutPricingBtn) aboutPricingBtn.style.display = "none";
+          // Hide About pricing button
+          if (aboutPricingBtn) aboutPricingBtn.style.display = "none";
       
-        // ✅ Force hide Hero View Pricing button
-        if (heroPricingBtn) heroPricingBtn.style.display = "none";
+          // Hide Hero pricing button
+          if (heroPricingBtn) heroPricingBtn.style.display = "none";
       
-        return;
-      } else {
-        // ✅ Show pricing section
-        pricingSection.classList.remove("hidden");
+          return;
+        } else {
+          // Show pricing section
+          if (pricingSection) pricingSection.classList.remove("hidden");
       
-        // ✅ Force show navbar Pricing tab
-        if (pricingNavLink) pricingNavLink.style.display = "inline-block";
+          // Show navbar pricing tab
+          if (pricingNavLink) pricingNavLink.style.display = "inline-block";
       
-        // ✅ Force show About View Pricing button
-        if (aboutPricingBtn) aboutPricingBtn.style.display = "inline-block";
+          // Show About pricing button
+          if (aboutPricingBtn) aboutPricingBtn.style.display = "inline-block";
       
-        // ✅ Force show Hero View Pricing button
-        if (heroPricingBtn) heroPricingBtn.style.display = "inline-block";
+          // Show Hero pricing button
+          if (heroPricingBtn) heroPricingBtn.style.display = "inline-block";
+        }
+      
+        // ✅ Pricing animations
+        if (settings.pricing_animations) {
+          if (pricingCard) pricingCard.classList.add("slide-up");
+        } else {
+          if (pricingCard) {
+            pricingCard.classList.remove("slide-up");
+            pricingCard.style.opacity = "1";
+          }
+        }
+      
+        // ✅ Load pricing plans
+        const { data: plans, error: pErr } = await supabaseClient
+          .from("pricing_plans")
+          .select("*")
+          .order("sort_order", { ascending: true });
+      
+        if (pErr) {
+          console.error("Plans load error:", pErr);
+          return;
+        }
+      
+        if (!pricingGrid) return;
+        pricingGrid.innerHTML = "";
+      
+        plans.forEach((p) => {
+          const isHighlight = p.highlight === true;
+      
+          pricingGrid.innerHTML += `
+            <div class="${
+              isHighlight
+                ? "bg-indigo-600 text-white rounded-3xl shadow-lg p-6 hover:scale-[1.02] transition"
+                : "bg-white rounded-3xl border shadow-sm p-6 hover:shadow-lg transition"
+            }">
+              <h4 class="text-xl font-bold">${p.plan_name}</h4>
+              <p class="${isHighlight ? "text-indigo-100" : "text-gray-500"} text-sm mt-1">
+                ${p.subtitle || ""}
+              </p>
+              <p class="text-3xl font-extrabold mt-4 ${isHighlight ? "" : "text-indigo-600"}">
+                ₹${p.price}
+              </p>
+              <ul class="mt-4 space-y-2 text-sm">
+                ${(p.features || []).map(f => `<li>✅ ${f}</li>`).join("")}
+              </ul>
+            </div>
+          `;
+        });
       }
-
-      if (settings.pricing_animations) {
-        pricingCard.classList.add("slide-up");
-      } else {
-        pricingCard.classList.remove("slide-up");
-        pricingCard.style.opacity = "1";
-      }
-
-      const { data: plans, error: pErr } = await supabaseClient
-        .from("pricing_plans")
-        .select("*")
-        .order("sort_order", { ascending: true });
-
-      if (pErr) {
-        console.error("Plans load error:", pErr);
-        return;
-      }
-
-      pricingGrid.innerHTML = "";
-
-      plans.forEach((p) => {
-        const isHighlight = p.highlight === true;
-
-        pricingGrid.innerHTML += `
-          <div class="${
-            isHighlight
-              ? "bg-indigo-600 text-white rounded-3xl shadow-lg p-6 hover:scale-[1.02] transition"
-              : "bg-white rounded-3xl border shadow-sm p-6 hover:shadow-lg transition"
-          }">
-            <h4 class="text-xl font-bold">${p.plan_name}</h4>
-            <p class="${isHighlight ? "text-indigo-100" : "text-gray-500"} text-sm mt-1">
-              ${p.subtitle || ""}
-            </p>
-            <p class="text-3xl font-extrabold mt-4 ${isHighlight ? "" : "text-indigo-600"}">
-              ₹${p.price}
-            </p>
-            <ul class="mt-4 space-y-2 text-sm">
-              ${(p.features || []).map(f => `<li>✅ ${f}</li>`).join("")}
-            </ul>
-          </div>
-        `;
-      });
-    }
-
-    loadPricingFromSupabase();
-    const pricingNavLink = document.getElementById("pricingNavLink");
-    const aboutPricingBtn = document.getElementById("aboutPricingBtn");
-    // ✅ Auto-refresh pricing every 30 seconds
-  setInterval(loadPricingFromSupabase, 30000);
-
+      
+      // ✅ Run on load
+      loadPricingFromSupabase();
+      
+      // ✅ Auto-refresh pricing every 30 seconds
+      setInterval(loadPricingFromSupabase, 30000);
 
     // ✅ Form submit: admin trick + normal inquiry
     form.addEventListener("submit", async (e) => {
