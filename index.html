@@ -85,9 +85,10 @@
     </div>
 
     <div class="flex items-center gap-3">
-      <a href="#pricing" class="hidden md:inline-block text-sm font-semibold text-gray-700 hover:text-indigo-600 transition">
+      <a id="pricingNavLink" href="#pricing" class="hidden md:inline-block text-sm font-semibold text-gray-700 hover:text-indigo-600 transition">
         Pricing
       </a>
+      
       <a href="#reach-us" class="hidden md:inline-block text-sm font-semibold text-gray-700 hover:text-rose-600 transition">
         Reach Us
       </a>
@@ -313,9 +314,11 @@
             Book Now
           </a>
 
-          <a href="#pricing"
+          <a id="aboutPricingBtn" href="#pricing"
             class="w-full text-center bg-white hover:bg-gray-50 text-gray-800 font-bold py-3 rounded-2xl transition border">
             View Pricing
+          </a>
+          
           </a>
         </div>
       </div>
@@ -510,10 +513,25 @@
       }
 
       if (!settings.show_pricing) {
+        // ✅ Hide pricing section
         pricingSection.classList.add("hidden");
+      
+        // ✅ Hide Pricing nav tab
+        if (pricingNavLink) pricingNavLink.classList.add("hidden");
+      
+        // ✅ Hide About "View Pricing" button
+        if (aboutPricingBtn) aboutPricingBtn.classList.add("hidden");
+      
         return;
       } else {
+        // ✅ Show pricing section
         pricingSection.classList.remove("hidden");
+      
+        // ✅ Show Pricing nav tab
+        if (pricingNavLink) pricingNavLink.classList.remove("hidden");
+      
+        // ✅ Show About "View Pricing" button
+        if (aboutPricingBtn) aboutPricingBtn.classList.remove("hidden");
       }
 
       if (settings.pricing_animations) {
@@ -560,6 +578,8 @@
     }
 
     loadPricingFromSupabase();
+    const pricingNavLink = document.getElementById("pricingNavLink");
+    const aboutPricingBtn = document.getElementById("aboutPricingBtn");
     // ✅ Auto-refresh pricing every 30 seconds
   setInterval(loadPricingFromSupabase, 30000);
 
@@ -659,6 +679,7 @@
 
 </body>
 </html>
+
 
 
 
